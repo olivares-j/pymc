@@ -23,6 +23,7 @@ import pytensor.tensor as pt
 from numpy.core.numeric import normalize_axis_tuple  # type: ignore
 from pytensor.graph import Op
 from pytensor.tensor import TensorVariable
+from pytensor.tensor.basic import tensor_copy
 
 import pymc as pm
 
@@ -155,13 +156,17 @@ class CholeskyCovPacked(Transform):
         n: int
             Number of diagonal entries in the LKJCholeskyCov distribution
         """
-        self.diag_idxs = pt.arange(1, n + 1).cumsum() - 1
+        self.diag_idxs = np.arange(1, n.value + 1).cumsum() - 1
 
     def backward(self, value, *inputs):
-        return pt.set_subtensor(value[..., self.diag_idxs], pt.exp(value[..., self.diag_idxs]))
+        x = tensor_copy(value)
+        x = pt.set_subtensor(x[...,self.diag_idxs], pt.exp(value[...,self.diag_idxs]))
+        return x
 
     def forward(self, value, *inputs):
-        return pt.set_subtensor(value[..., self.diag_idxs], pt.log(value[..., self.diag_idxs]))
+        x = tensor_copy(value)
+        x = pt.set_subtensor(x[..., self.diag_idxs], pt.log(value[..., self.diag_idxs]))
+        return x
 
     def log_jac_det(self, value, *inputs):
         return pt.sum(value[..., self.diag_idxs], axis=-1)
